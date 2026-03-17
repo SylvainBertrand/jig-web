@@ -1,0 +1,68 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "FILE=$(echo '$ARGUMENTS' | jq -r '.tool_input.file_path // .tool_input.file_paths[0] // empty' 2>/dev/null); [ -n \"$FILE\" ] && [ -f \"$FILE\" ] && npx prettier --write \"$FILE\" 2>/dev/null; exit 0"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd app 2>/dev/null && [ -f tsconfig.json ] && npx tsc --noEmit 2>&1 | tail -15; exit 0",
+            "async": true
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd app 2>/dev/null && STUBS=$(grep -rn '() => {}\\|() => { }\\|// TODO\\|not implemented' src/ 2>/dev/null | wc -l | tr -d ' '); [ \"$STUBS\" -gt 0 ] && echo \"WARNING: $STUBS stub(s) found\" >&2; exit 0",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "FILE=$(echo '$ARGUMENTS' | jq -r '.tool_input.file_path // empty' 2>/dev/null); echo \"$FILE\" | grep -q 'docs/SPEC.md\\|docs/tasks/' && echo 'BLOCKED: Spec and task files are read-only.' >&2 && exit 2; exit 0"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd app 2>/dev/null && [ -f package.json ] && { ERRORS=$(npx tsc --noEmit 2>&1 | grep -c 'error TS' || true); STUBS=$(grep -rn '() => {}\\|() => { }\\|// TODO' src/ 2>/dev/null | wc -l | tr -d ' '); FILES=$(find src -name '*.tsx' -o -name '*.ts' 2>/dev/null | wc -l | tr -d ' '); echo \"STATUS: ${FILES} files, ${ERRORS} TS errors, ${STUBS} stubs\"; }; exit 0"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd app 2>/dev/null && [ -f tsconfig.json ] && npx tsc --noEmit 2>&1 | tail -15; exit 0"
+          }
+        ]
+      }
+    ]
+  }
+}
